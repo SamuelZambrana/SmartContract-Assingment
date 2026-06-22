@@ -254,3 +254,43 @@ You are also evaluated on:
   - Any tradeoffs or decisions worth noting
 - Make sure `npm install` → `npm run chain` (separate terminal) → `npm run deploy` → `npm run dev` works end-to-end
 
+---
+
+## My notes
+
+All four tasks are done, tested and documented (details per task are in the **Solution Notes** above).
+
+### How to run
+
+```bash
+npm install
+cp .env.example .env          # then paste the deployed token address into ZYNC_TOKEN_ADDRESS
+npm run chain                 # terminal 1 — local Hardhat node
+npm run deploy                # terminal 2 — deploy ZyncToken, copy the printed address into .env
+npm run dev                   # terminal 2 — app on http://localhost:3000
+npm run test:contracts        # contract tests (5 passing)
+```
+
+Quick checks:
+- Task 1 — place an order on `/trade/btc-usdt`; it now hits `POST /api/v1/orders`.
+- Task 2 — `GET /api/v1/markets/btc-usdt/candles?timeframe=1m&limit=20` (try `timeframe=3m` / `limit=999` for the 400s).
+- Task 3 — open `/markets`; the Portfolio panel shows positions with live PnL.
+- Task 4 — `npm run test:contracts`.
+
+### Heads up while reviewing
+
+I found a malicious dependency in the original `package.json` (`tailwind-animates`, a typosquat that pulled in `animatecss-postcss-plugin` and ran obfuscated remote code at build time). I removed it, swapped in the legit `tailwindcss-animate`, and regenerated a clean lockfile. I also fixed a build-time prerender crash on `/api/v1/markets` (`MarketEngine not ready`) by marking the route dynamic.
+
+### What I'd do with more time
+
+- Wire the candles endpoint into a real chart (e.g. `lightweight-charts`, already a dependency) instead of the TradingView widget, so Task 2 is also visible in the UI.
+- Make the order flow fully real: have the trade page read positions/fills from the matching engine instead of keeping a parallel paper-trade store in `localStorage`.
+- Add API tests for the candles endpoint (the resampling logic in `lib/candles.js` is pure and easy to unit-test).
+- Persist 1m base candles in the engine so `1m` is real data rather than a synthesised subdivision of the 5m series.
+
+### Tradeoffs / decisions worth noting
+
+- **Task 1**: I kept the existing `PaperTradeContext` writes so the Positions/Open orders panels keep working, and added the backend call on top — minimal change, nothing breaks.
+- **Task 2**: the engine only stores a 5m base series. I aggregate up for 15m/1h and subdivide for 1m (preserving open/close, extremes and total volume). It's faithful for ≥5m and a reasonable approximation for 1m given the data available.
+- **Task 4**: the token isn't proxy-upgradeable, so "upgrading" means redeploying a fresh instance (the repo's deploy flow). I used OpenZeppelin's `ERC20Burnable` rather than re-implementing burn logic, and only override `burn`/`burnFrom` to emit the required `Burned` event.
+
