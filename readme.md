@@ -168,6 +168,16 @@ Added a **Portfolio** panel to the `/markets` page.
 - **Real-time PnL:** mark prices are read from the stream overview, so every WebSocket tick re-renders the panel and recomputes PnL live. PnL uses `(mark − entry) · size` for longs and `(entry − mark) · size` for shorts, matching the trade page.
 - **Extras:** a total unrealised PnL summary, a live/reconnecting indicator, an empty state, and a **Close** action (reuses `PaperTradeContext.closePosition`). Styling reuses the page's existing Tailwind tokens (rounded panels, `#3dffa0` accent, token icons).
 
+### Task 4 — Smart Contract Extension (implemented)
+
+Extended `contracts/contracts/ZyncToken.sol` with burn support.
+
+- **OpenZeppelin pattern:** instead of re-implementing burn logic, the contract now inherits OZ's audited `ERC20Burnable` extension (`is ERC20, ERC20Burnable, Ownable, ReentrancyGuard`).
+- **`burn(uint256 amount)`** — any holder burns their own tokens. Overrides `ERC20Burnable.burn`, delegating to `super` (which calls `_burn` and reverts with `ERC20InsufficientBalance`) and then emits `Burned`.
+- **`burnFrom(address account, uint256 amount)`** — burns from `account` using the allowance mechanism. Overrides `ERC20Burnable.burnFrom`, delegating to `super` (which calls `_spendAllowance` + `_burn`) and emits `Burned` for `account`.
+- **Event:** `event Burned(address indexed from, uint256 amount)`.
+- **Tests:** `contracts/test/ZyncToken.burn.test.cjs` covers successful burn, burn exceeding balance, `burnFrom` with allowance (and that the allowance is consumed), and `burnFrom` without allowance. Run with `npm run test:contracts` (all tests green, existing mint test still passes).
+
 ---
 
 ## API Reference
