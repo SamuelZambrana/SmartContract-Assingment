@@ -156,6 +156,18 @@ Added `GET /api/v1/markets/:id/candles?timeframe=5m&limit=100` returning OHLCV c
 - **Validation (`400` with clear messages):** `timeframe` must be one of `1m, 5m, 15m, 1h`; `limit` must be a positive integer `≤ 500`. Defaults: `timeframe=5m`, `limit=100`.
 - Response: `{ market_id, timeframe, candles: [{ t, o, h, l, c, v }] }` (most recent `limit` candles).
 
+### Task 3 — Frontend Feature (implemented)
+
+Added a **Portfolio** panel to the `/markets` page.
+
+- **Component:** `client/src/components/dex/PortfolioPanel.tsx`, rendered in `client/src/views/MarketsPage.tsx` between the stats strip and the markets table.
+- **Data sources (both already provided app-wide in `app/providers.tsx`):**
+  - open paper-trade positions from `PaperTradeContext` (persisted in `localStorage`);
+  - live mark prices from `MarketsStreamContext` (the `/ws/markets` WebSocket feed).
+- **Per position it shows:** pair, side (long/short), size, entry price, current mark price, and unrealised PnL (absolute + %).
+- **Real-time PnL:** mark prices are read from the stream overview, so every WebSocket tick re-renders the panel and recomputes PnL live. PnL uses `(mark − entry) · size` for longs and `(entry − mark) · size` for shorts, matching the trade page.
+- **Extras:** a total unrealised PnL summary, a live/reconnecting indicator, an empty state, and a **Close** action (reuses `PaperTradeContext.closePosition`). Styling reuses the page's existing Tailwind tokens (rounded panels, `#3dffa0` accent, token icons).
+
 ---
 
 ## API Reference

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMarketsStream } from "../context/MarketsStreamContext";
 import { useFavorites } from "../context/FavoritesContext";
 import { SparklineSvg } from "../components/dex/SparklineSvg";
+import { PortfolioPanel } from "../components/dex/PortfolioPanel";
 import { TOKEN_ICONS } from "../components/dex/tokenIcons";
 
 function TokenIcon({ symbol }: { symbol: string }) {
@@ -130,6 +131,9 @@ export function MarketsPage() {
             ))}
           </div>
         )}
+
+        {/* Portfolio */}
+        <PortfolioPanel />
 
         {/* Controls */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
