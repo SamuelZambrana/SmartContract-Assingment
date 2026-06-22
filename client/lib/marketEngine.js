@@ -252,6 +252,17 @@ export class MarketEngine extends EventEmitter {
     return { ...MarketEngine.toPublic(m), book: MarketEngine.buildBook(m.price, qd), trades: [...m.trades], candles: [...m.candles] };
   }
 
+  /**
+   * Base OHLCV candle series for a market (5-minute buckets), or null if the
+   * market is unknown. Returned candles are copies so callers can't mutate state.
+   * @param {string} id
+   */
+  rawCandles(id) {
+    const m = this.inner.get(id);
+    if (!m) return null;
+    return m.candles.map((k) => ({ ...k }));
+  }
+
   static buildBook(mid, quoteDecimals) {
     const step = mid * 0.00015;
     const asks = [], bids = [];

@@ -143,6 +143,19 @@ The `POST /api/v1/orders` route and `matchingEngine.submit()` were already corre
 
 > Note: the visible order book is simulated data from `marketEngine` and is independent of the `matchingEngine` book, so a `market` order with no resting liquidity returns `200` with `trades: []`; a `limit` order rests and shows up in `GET /api/v1/orders`.
 
+### Task 2 — New API Endpoint (implemented)
+
+Added `GET /api/v1/markets/:id/candles?timeframe=5m&limit=100` returning OHLCV candles.
+
+- **Route:** `client/app/api/v1/markets/[id]/candles/route.js`, following the same pattern as `[id]/route.js` (engine accessor from `lib/engines.js`, `404` for unknown market).
+- **Resampling helper:** `client/lib/candles.js` keeps the logic pure and testable. The engine stores one base series per market (5-minute buckets), so the helper:
+  - aggregates base candles for coarser timeframes (`15m`, `1h`) — `open` of first, `high`/`low` extremes, `close` of last, summed `volume`;
+  - subdivides into finer candles for `1m`, preserving the parent's open/close, extremes and total volume;
+  - returns `5m` unchanged.
+- **Engine:** added a lightweight `MarketEngine.rawCandles(id)` accessor (returns copies; `null` for unknown markets).
+- **Validation (`400` with clear messages):** `timeframe` must be one of `1m, 5m, 15m, 1h`; `limit` must be a positive integer `≤ 500`. Defaults: `timeframe=5m`, `limit=100`.
+- Response: `{ market_id, timeframe, candles: [{ t, o, h, l, c, v }] }` (most recent `limit` candles).
+
 ---
 
 ## API Reference
@@ -154,6 +167,7 @@ All routes are served by the Next.js app at `http://localhost:3000`.
 | `GET` | `/api/v1/config` | App and chain config |
 | `GET` | `/api/v1/markets` | All markets overview |
 | `GET` | `/api/v1/markets/:id` | Market detail — book, trades, candles |
+| `GET` | `/api/v1/markets/:id/candles` | OHLCV candles (`timeframe`=`1m\|5m\|15m\|1h`, `limit`≤`500`) |
 | `WS` | `/ws/markets` | Live market ticks (snapshot + tick) |
 | `POST` | `/api/v1/orders` | Place an order |
 | `GET` | `/api/v1/orders` | List orders |
