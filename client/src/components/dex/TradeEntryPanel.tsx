@@ -14,26 +14,67 @@ export function TradeEntryPanel({ marketId, pair, base, quote, markPrice, connec
   const [limitPx, setLimitPx] = useState("");
   const [leverage, setLeverage] = useState(10);
   const [toast, setToast] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const sz = parseFloat(size) || 0;
   const estNotional = sz > 0 && markPrice > 0 ? sz * markPrice : 0;
   const estLiq = side === "buy" ? markPrice * (1 - 0.85 / Math.max(leverage, 1)) : markPrice * (1 + 0.85 / Math.max(leverage, 1));
   const fee = estNotional * 0.0004;
 
-  function onSubmit() {
+  async function onSubmit() {
     setToast(null);
     if (!connected) { onRequestConnect?.(); setToast("Connect a wallet to continue."); return; }
     if (!(sz > 0)) { setToast("Enter a valid size."); return; }
+
+    let limitPrice: number | null = null;
     if (orderType === "limit") {
       const lp = parseFloat(limitPx);
       if (!(lp > 0)) { setToast("Enter limit price."); return; }
-      placeLimit({ marketId, pair, side, sizeBase: sz, limitPrice: lp });
-      setToast(`Limit ${side} submitted @ ${lp}`);
-      return;
+      limitPrice = lp;
     }
-    const r = placeMarket({ marketId, pair, side, sizeBase: sz, markPrice });
-    if ("error" in r) setToast(r.error);
-    else setToast(`Filled @ ~${r.fillPrice.toFixed(8)} ${quote}`);
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          market_id: marketId,
+          side,
+          order_type: orderType,
+          size: sz,
+          ...(orderType === "limit" ? { price: limitPrice } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const msg = (await res.text()).trim();
+        setToast(msg || `Order rejected (${res.status})`);
+        return;
+      }
+
+      const data = (await res.json()) as { order: { status: string }; trades: unknown[] };
+
+      // Mirror the accepted order into the local paper-trade store so the
+      // Positions / Open orders panels keep reflecting the user's activity.
+      if (orderType === "limit" && limitPrice != null) {
+        placeLimit({ marketId, pair, side, sizeBase: sz, limitPrice });
+        setToast(`Limit ${side} submitted @ ${limitPrice}`);
+      } else {
+        const r = placeMarket({ marketId, pair, side, sizeBase: sz, markPrice });
+        if ("error" in r) {
+          setToast(r.error);
+        } else if (data.trades.length > 0) {
+          setToast(`Filled @ ~${r.fillPrice.toFixed(8)} ${quote}`);
+        } else {
+          setToast(`Market ${side} submitted — no resting liquidity yet`);
+        }
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Network error placing order.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const inputCls = "w-full rounded-md border border-white/[0.06] bg-[#060809] px-3 py-2 font-mono text-sm text-white outline-none focus:border-[rgba(0,217,192,0.4)]";
@@ -96,11 +137,11 @@ export function TradeEntryPanel({ marketId, pair, base, quote, markPrice, connec
       )}
 
       {/* Submit */}
-      <button type="button" disabled={!markPrice} onClick={onSubmit}
+      <button type="button" disabled={!markPrice || submitting} onClick={onSubmit}
         className={`w-full rounded py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
           side === "buy" ? "bg-[#3dd68c] text-black" : "bg-[#ff5c5c] text-white"
         }`}>
-        {!connected ? "Connect wallet" : orderType === "market" ? `Market ${side}` : `Place limit ${side}`}
+        {submitting ? "Submitting…" : !connected ? "Connect wallet" : orderType === "market" ? `Market ${side}` : `Place limit ${side}`}
       </button>
 
       {toast && <div className="text-xs text-white/55">{toast}</div>}

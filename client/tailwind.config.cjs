@@ -13,10 +13,6 @@ module.exports = {
     },
   },
   plugins: [
-    require('tailwind-animates')({
-      duration: '1s',
-      delay: '200ms',
-      iterationCount: '4'
-    })
+    require('tailwindcss-animate')
   ],
 };

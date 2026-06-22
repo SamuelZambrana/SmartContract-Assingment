@@ -126,6 +126,25 @@ Extend `ZyncToken.sol` or add a new contract:
 
 ---
 
+## Solution Notes
+
+### Task 1 — Bug Fix (resolved)
+
+**Problem:** On `/trade/btc-usdt` the **Place Order** button never reached the backend. `TradeEntryPanel` only called the local `PaperTradeContext` (`placeMarket`/`placeLimit`), which writes to `localStorage`, so no request was ever sent to `POST /api/v1/orders` and the order never hit the matching engine.
+
+**Fix:** `onSubmit` in `client/src/components/dex/TradeEntryPanel.tsx` now submits end-to-end:
+
+- Sends `POST /api/v1/orders` with the body the route expects (`market_id`, `side`, `order_type`, `size`, and `price` only for `limit` orders).
+- Works for both `market` and `limit` order types.
+- Surfaces backend validation errors (e.g. `unknown market_id`, `size must be positive`) and network errors in the UI, and disables the button while submitting to prevent duplicates.
+- Still mirrors the accepted order into `PaperTradeContext` so the existing **Positions** / **Open orders** panels keep working unchanged.
+
+The `POST /api/v1/orders` route and `matchingEngine.submit()` were already correct — the only missing link was the frontend→API call.
+
+> Note: the visible order book is simulated data from `marketEngine` and is independent of the `matchingEngine` book, so a `market` order with no resting liquidity returns `200` with `trades: []`; a `limit` order rests and shows up in `GET /api/v1/orders`.
+
+---
+
 ## API Reference
 
 All routes are served by the Next.js app at `http://localhost:3000`.
